@@ -1,0 +1,17 @@
+@keyframes dcRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes dcFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dcZoom { from { opacity: 0; transform: scale(1.035); } to { opacity: 1; transform: none; } }
+@keyframes dcSlideL { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes dcSlideR { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes dcPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.82); } }
+@keyframes dcGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(145,132,217,0.35); } 50% { box-shadow: 0 0 0 7px rgba(145,132,217,0); } }
+@keyframes dcHazard { 0%, 100% { box-shadow: 0 0 0 0 rgba(217,90,79,0.45); } 50% { box-shadow: 0 0 0 8px rgba(217,90,79,0); } }
+@keyframes dcAurora {
+  0% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1.25); }
+  50% { transform: translate3d(4%, 3%, 0) rotate(9deg) scale(1.4); }
+  100% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1.25); }
+}
+@keyframes dcDrift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-120px, 420px, 0); } }
+@keyframes dcShimmer { from { background-position: -420px 0; } to { background-position: 420px 0; } }
+@keyframes dcDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes dcFlash { 0% { background: rgba(145,132,217,0.22); } 100% { background: transparent; } }

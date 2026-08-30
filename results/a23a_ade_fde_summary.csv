@@ -1,0 +1,2 @@
+Model,Forecast windows,Mean ADE over 7 days (km),Mean FDE at Day 7 (km),Median FDE at Day 7 (km),90th percentile FDE (km)
+Constant velocity baseline,359,1.7511302025775,3.496958430790776,1.460562845428,8.308068258758256

@@ -1,0 +1,4 @@
+iceberg_id,latest_observation_date,forecast_horizon_days,forecast_date,predicted_latitude,predicted_longitude,risk_radius_km_p90,selected_model
+A23A,2026-03-31,1,2026-04-01,-48.344001170708665,-29.827332719692166,0.43733558599943934,constant_velocity
+A23A,2026-03-31,3,2026-04-03,-48.25461415202924,-29.45290641207481,3.060860143375218,constant_velocity
+A23A,2026-03-31,7,2026-04-07,-48.071133036770426,-28.709354728089114,8.308068258758256,constant_velocity

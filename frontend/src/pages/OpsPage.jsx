@@ -44,8 +44,12 @@ export default function OpsPage({ data, t, playing, layers, sel, onSetT, onToggl
   return (
     <main className="sd-ops">
       <PolarCanvas mode="ops" data={data} layers={layers} t={t} selected={sel} onSelect={onSelect} />
-      <LayerPanel layers={layers} onToggle={onToggleLayer} />
-      <IceLegend />
+
+      <div className="sd-ops__leftStack">
+        <LayerPanel layers={layers} onToggle={onToggleLayer} />
+        <IceLegend />
+      </div>
+
       <AlertPanel alerts={alerts} />
       <SelectionPanel sel={selection} onClear={() => onSelect(null)} position="ops" />
       <TimelineBar t={t} playing={playing} onSetT={onSetT} onTogglePlay={onTogglePlay} stamp={tStamp} confidence={tConfidence} />
@@ -54,6 +58,13 @@ export default function OpsPage({ data, t, playing, layers, sel, onSetT, onToggl
           flex: 1; min-height: 0; position: relative;
           animation: dcZoom 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
+        .sd-ops__leftStack {
+          position: absolute; left: var(--space-6); top: var(--space-6); bottom: 104px;
+          display: flex; flex-direction: column; gap: var(--space-3);
+          overflow-y: auto; scrollbar-width: none;
+          animation: dcSlideL 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+        .sd-ops__leftStack::-webkit-scrollbar { display: none; }
       `}</style>
     </main>
   );

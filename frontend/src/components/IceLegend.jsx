@@ -11,17 +11,16 @@ export default function IceLegend() {
       </div>
       <style>{`
         .sd-legend {
-          position: absolute; left: var(--space-6); bottom: 104px; padding: var(--space-4);
-          border-radius: var(--radius-md); background: rgba(27,30,46,0.74);
-          backdrop-filter: blur(14px); box-shadow: var(--shadow-sm);
-          animation: dcSlideL 460ms 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+          flex: none; width: 246px; padding: var(--space-4);
+          border-radius: var(--radius-md); background: rgba(27,30,46,0.78);
+          backdrop-filter: blur(14px); box-shadow: var(--shadow-md);
         }
         .sd-legend__title {
           font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
           color: color-mix(in srgb, var(--color-text) 50%, transparent);
         }
         .sd-legend__ramp {
-          width: 178px; height: 8px; margin: var(--space-3) 0 5px; border-radius: 4px;
+          width: 100%; height: 8px; margin: var(--space-3) 0 5px; border-radius: 4px;
           background: linear-gradient(90deg, #2b2741, #5d5294, #968ae0, #d2cefd, #f5f4ff);
         }
         .sd-legend__scale {

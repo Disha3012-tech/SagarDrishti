@@ -1,12 +1,21 @@
+import { useMemo } from 'react';
 import PolarCanvas from '../components/PolarCanvas';
 import RouteCard from '../components/RouteCard';
-import { EXPLAIN_LINES } from '../data/mockData';
+import { EXPLAIN_LINES, computeRoutes } from '../data/mockData';
 
 const ICE_CLASSES = ['PC4', 'PC5', 'PC6'];
 
 export default function RoutesPage({ data, iceClass, priority, routeGen, onSetIceClass, onSetPriority, onResolve }) {
   const priorityLabel = priority < 40 ? 'fuel-weighted' : (priority > 60 ? 'speed-weighted' : 'balanced');
-  const routeStatus = `3 solutions · ${iceClass} · ${priorityLabel}`;
+
+  const routes = useMemo(
+    () => computeRoutes({ iceClass, priority, seed: routeGen }),
+    [iceClass, priority, routeGen]
+  );
+  const recommended = routes.find((r) => r.rec) || routes[0];
+  const mapData = useMemo(() => ({ ...data, routes }), [data, routes]);
+
+  const routeStatus = `${routes.length} solutions · ${iceClass} · ${priorityLabel}`;
 
   return (
     <main className="sd-routes">
@@ -70,19 +79,36 @@ export default function RoutesPage({ data, iceClass, priority, routeGen, onSetIc
       </section>
 
       <section className="sd-routes__map">
-        <PolarCanvas mode="routes" data={data} layers={{ route: true }} t={0} routeGenTick={routeGen} />
+        <PolarCanvas
+          mode="routes"
+          data={mapData}
+          layers={{ route: true, bergs: true }}
+          t={0}
+          routeGenTick={routeGen}
+        />
         <div className="sd-routes__mapLabel">Candidate tracks · {routeStatus}</div>
+
+        <div className="sd-routes__legend">
+          {routes.map((r) => (
+            <div key={r.id} className="sd-routes__legendItem">
+              <i className="sd-routes__legendSwatch" style={{ background: r.color }} />
+              <span className="sd-routes__legendId" style={{ color: r.color }}>{r.id}</span>
+              <span className="sd-routes__legendName">{r.name}</span>
+              {r.rec && <span className="sd-routes__legendTag">rec</span>}
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="sd-routes__compare">
         <div className="sd-routes__label">Comparison</div>
         <div className="sd-routes__cards">
-          {data.routes.map((r, i) => (
+          {routes.map((r, i) => (
             <RouteCard key={r.id} route={r} delay={i * 110 + 120} />
           ))}
         </div>
 
-        <div className="sd-routes__label" style={{ marginTop: 'var(--space-8)' }}>Why R-01</div>
+        <div className="sd-routes__label" style={{ marginTop: 'var(--space-8)' }}>Why {recommended.id}</div>
         <div className="sd-routes__explain">
           {EXPLAIN_LINES.map((text, i) => (
             <div key={text} className="sd-routes__explainLine" style={{ animation: `dcRise 460ms ${i * 130 + 260}ms ease-out both` }}>
@@ -123,6 +149,22 @@ export default function RoutesPage({ data, iceClass, priority, routeGen, onSetIc
           position: absolute; left: var(--space-6); top: var(--space-6); font-family: var(--font-mono);
           font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
           color: color-mix(in srgb, var(--color-text) 52%, transparent);
+          max-width: calc(100% - var(--space-6) * 2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sd-routes__legend {
+          position: absolute; right: var(--space-6); bottom: var(--space-6);
+          background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+          border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+          padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 6px;
+          backdrop-filter: blur(6px);
+        }
+        .sd-routes__legendItem { display: flex; align-items: center; gap: var(--space-2); font-size: 11px; }
+        .sd-routes__legendSwatch { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+        .sd-routes__legendId { font-family: var(--font-mono); font-size: 10px; flex: none; }
+        .sd-routes__legendName { color: color-mix(in srgb, var(--color-text) 70%, transparent); white-space: nowrap; }
+        .sd-routes__legendTag {
+          margin-left: auto; font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em;
+          text-transform: uppercase; color: var(--color-accent);
         }
         .sd-routes__compare {
           border-left: 1px solid var(--color-divider); padding: var(--space-6); overflow-y: auto;

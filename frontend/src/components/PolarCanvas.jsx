@@ -228,9 +228,13 @@ export default function PolarCanvas({
         }
         const sel = selected && selected.type === 'berg' && selected.id === b.id;
         if (sel) {
-          c.strokeStyle = `rgba(217,90,79,${0.35 + 0.35 * Math.sin(clock * 3)})`;
+          // FIX: previously ignored `reduced` — the highlight ring pulsed
+          // via Math.sin(clock*3) unconditionally. Under reduced motion we
+          // now draw a static ring at its mean radius/opacity instead.
+          const pulse = reduced ? 0 : Math.sin(clock * 3);
+          c.strokeStyle = `rgba(217,90,79,${0.35 + 0.35 * pulse})`;
           c.lineWidth = 2;
-          c.beginPath(); c.arc(p[0], p[1], 13 + 4 * Math.sin(clock * 3), 0, Math.PI * 2); c.stroke();
+          c.beginPath(); c.arc(p[0], p[1], 13 + (reduced ? 0 : 4 * pulse), 0, Math.PI * 2); c.stroke();
           c.strokeStyle = 'rgba(233,233,237,0.5)'; c.setLineDash([3, 3]);
           c.beginPath();
           for (let k = 20; k >= 0; k--) {
@@ -271,6 +275,7 @@ export default function PolarCanvas({
     hitsRef.current = hits;
 
     // Radar-style reveal sweep on first mount of this view.
+    // FIX: previously played regardless of reduced-motion setting.
     const sinceMount = (now - mountClockRef.current) / 1000;
     if (!preview && !reduced && sinceMount < 1.6) {
       const a = 1 - sinceMount / 1.6;

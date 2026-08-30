@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { X, Y, pathD, bandD } from '../utils/series';
 
 const GRID_LEVELS = [0, 0.25, 0.5, 0.75, 1];
@@ -11,6 +12,24 @@ export default function ForecastChart({ series, modelLabel }) {
   const bandPath = bandD(hi, lo);
   const nowX = X(6).toFixed(1);
 
+  // FIX: the draw-on animation previously only ran once, on mount — the
+  // <path> elements are reused (same DOM nodes, new `d`) when the parent
+  // switches region/model, so the finished CSS animation never replayed
+  // and the line just snapped to its new shape. Bumping `animTick` on
+  // every new `series` object and keying the animated paths on it forces
+  // React to remount them, replaying the draw-on each time the data
+  // actually changes. (Reduced-motion is handled globally in
+  // animations.css, which collapses these to their end state instantly —
+  // no extra handling needed here.)
+  const [animTick, setAnimTick] = useState(0);
+  const seenSeries = useRef(series);
+  useEffect(() => {
+    if (seenSeries.current !== series) {
+      seenSeries.current = series;
+      setAnimTick((n) => n + 1);
+    }
+  }, [series]);
+
   return (
     <div className="sd-forecastchart">
       <svg viewBox="0 0 900 380" className="sd-forecastchart__svg">
@@ -22,12 +41,25 @@ export default function ForecastChart({ series, modelLabel }) {
             </text>
           </g>
         ))}
-        <path d={bandPath} fill="rgba(145,132,217,0.16)" className="sd-forecastchart__band" />
-        <path d={ghostPath} fill="none" stroke="#5c5783" strokeWidth="1.5" strokeDasharray="4 4" className="sd-forecastchart__ghost" />
-        <path d={linePath} fill="none" stroke="#b5abfc" strokeWidth="2.4" strokeLinecap="round"
-          pathLength="1" strokeDasharray="1" className="sd-forecastchart__line" />
-        <path d={obsPath} fill="none" stroke="#e9e9ed" strokeWidth="2"
-          pathLength="1" strokeDasharray="1" className="sd-forecastchart__obs" />
+        <path
+          key={`band-${animTick}`}
+          d={bandPath} fill="rgba(145,132,217,0.16)" className="sd-forecastchart__band"
+        />
+        <path
+          key={`ghost-${animTick}`}
+          d={ghostPath} fill="none" stroke="#5c5783" strokeWidth="1.5" strokeDasharray="4 4"
+          className="sd-forecastchart__ghost"
+        />
+        <path
+          key={`line-${animTick}`}
+          d={linePath} fill="none" stroke="#b5abfc" strokeWidth="2.4" strokeLinecap="round"
+          pathLength="1" strokeDasharray="1" className="sd-forecastchart__line"
+        />
+        <path
+          key={`obs-${animTick}`}
+          d={obsPath} fill="none" stroke="#e9e9ed" strokeWidth="2"
+          pathLength="1" strokeDasharray="1" className="sd-forecastchart__obs"
+        />
         <line x1={nowX} y1="14" x2={nowX} y2="330" stroke="#9184d9" strokeWidth="1" strokeDasharray="3 4" />
         <text x={nowX} y="8" fill="#9184d9" fontFamily="JetBrains Mono, monospace" fontSize="10" textAnchor="middle">now</text>
         {X_TICKS.map((i) => (

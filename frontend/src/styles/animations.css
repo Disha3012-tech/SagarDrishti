@@ -15,3 +15,31 @@
 @keyframes dcShimmer { from { background-position: -420px 0; } to { background-position: 420px 0; } }
 @keyframes dcDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes dcFlash { 0% { background: rgba(145,132,217,0.22); } 100% { background: transparent; } }
+
+/*
+ * Global reduced-motion safety net.
+ *
+ * Every `dc*` keyframe above is referenced by name inside scoped
+ * component styles (Header.css, StatBand.jsx, LandingPage.jsx, etc.),
+ * not applied as literal `dc*` class names on elements — so a selector
+ * like `[class*="dc"]` would not actually catch them. Instead we use
+ * the standard "collapse to instant" pattern: every CSS animation and
+ * transition on the page still runs, but completes in ~0ms, so the
+ * *end state* renders immediately with no perceived motion. This
+ * covers every current and future use of these keyframes without
+ * needing to track down each selector by hand.
+ *
+ * Note: this only affects CSS-driven animation. Canvas-based motion
+ * (PolarCanvas) is driven by requestAnimationFrame in JS and is
+ * unaffected by this rule — it must check `prefersReducedMotion()`
+ * itself, which it already does for most effects (see PolarCanvas.jsx
+ * fixes for the two spots that were missing this check).
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

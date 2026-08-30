@@ -34,10 +34,9 @@ export default function LayerPanel({ layers, onToggle }) {
       </div>
       <style>{`
         .sd-layerpanel {
-          position: absolute; left: var(--space-6); top: var(--space-6); width: 246px;
+          flex: none; width: 246px;
           border-radius: var(--radius-md); background: rgba(27,30,46,0.78);
           backdrop-filter: blur(14px); box-shadow: var(--shadow-md); overflow: hidden;
-          animation: dcSlideL 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
         .sd-layerpanel__head {
           display: flex; align-items: center; justify-content: space-between;

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { proj, geo, conc } from '../utils/geo';
+import { proj, geo, conc, traceSmoothClosedPath } from '../utils/geo';
 import { COAST } from '../data/mockData';
 import useAnimationLoop, { prefersReducedMotion } from '../hooks/useAnimationLoop';
 
@@ -55,7 +55,8 @@ export default function PolarCanvas({
     const x = c.getContext('2d');
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
     x.clearRect(0, 0, w, h);
-    const dLon = 2.2, dLat = 0.55;
+
+    const dLon = 1.1, dLat = 0.3;
     const stops = [
       [0.14, [43, 39, 65]], [0.4, [93, 82, 148]], [0.65, [150, 138, 224]],
       [0.85, [210, 206, 253]], [1, [245, 244, 255]]
@@ -63,7 +64,7 @@ export default function PolarCanvas({
     for (let lon = -180; lon < 180; lon += dLon) {
       for (let lat = -84; lat < -54; lat += dLat) {
         const v = conc(lon + dLon / 2, lat + dLat / 2, tVal);
-        if (v < 0.14) continue;
+        if (v < 0.08) continue;
         const p1 = proj(el, lon, lat), p2 = proj(el, lon + dLon, lat),
               p3 = proj(el, lon + dLon, lat + dLat), p4 = proj(el, lon, lat + dLat);
         let col = stops[stops.length - 1][1];
@@ -74,7 +75,10 @@ export default function PolarCanvas({
             break;
           }
         }
-        x.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.30 + v * 0.62})`;
+        // Soft-fade the outer edge instead of a hard on/off cutoff at
+        // the threshold — this is what removes the "static" look.
+        const fade = Math.min(1, (v - 0.08) / 0.10);
+        x.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${(0.30 + v * 0.62) * fade})`;
         x.beginPath();
         x.moveTo(p1[0], p1[1]); x.lineTo(p2[0], p2[1]); x.lineTo(p3[0], p3[1]); x.lineTo(p4[0], p4[1]);
         x.closePath(); x.fill();
@@ -157,11 +161,9 @@ export default function PolarCanvas({
       });
     }
 
+    const coastPts = COAST.map(([lon, lat]) => proj(el, lon, lat));
     c.beginPath();
-    for (let i = 0; i < COAST.length; i++) {
-      const p = proj(el, COAST[i][0], COAST[i][1]);
-      if (i === 0) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]);
-    }
+    traceSmoothClosedPath(c, coastPts);
     c.closePath();
     const lg = c.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, g.R);
     lg.addColorStop(0, '#33364a'); lg.addColorStop(1, '#262937');
@@ -244,7 +246,7 @@ export default function PolarCanvas({
     }
 
     const hits = [];
-    const coneP = reduced ? 1 : Math.min(1, (now - coneT0Ref.current) / 1100);
+        const coneP = reduced ? 1 : Math.max(0, Math.min(1, (now - coneT0Ref.current) / 1100));
     if (L.bergs || preview || mode === 'bergs') {
       data.bergs.forEach((b) => {
         const lat = b.lat + Math.sin((b.brg * Math.PI) / 180) * b.spd * t * 0.004;

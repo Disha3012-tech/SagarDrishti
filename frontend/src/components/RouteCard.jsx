@@ -5,6 +5,7 @@ export default function RouteCard({ route, delay = 0 }) {
   const badgeColor = isRec ? 'var(--color-accent)' : (risk > 0.35 ? '#d95a4f' : 'color-mix(in srgb, var(--color-text) 45%, transparent)');
   const metrics = [
     { k: 'Distance', v: route.dist },
+    { k: 'Speed', v: route.speedKn ? `${route.speedKn} kn` : '—' },
     { k: 'Transit', v: route.eta },
     { k: 'Mean conc', v: route.conc },
     { k: 'Fuel', v: route.fuel },
@@ -44,7 +45,7 @@ export default function RouteCard({ route, delay = 0 }) {
           margin-left: auto; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
         }
         .sd-routecard__metrics {
-          display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); margin-top: var(--space-4);
+          display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-3); margin-top: var(--space-4);
         }
         .sd-routecard__mk {
           font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase;

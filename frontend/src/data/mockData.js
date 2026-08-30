@@ -45,6 +45,36 @@ const SECTORS = [
 ];
 const PREFIX = ['A', 'B', 'C', 'D'];
 
+// Builds one route's path. Only 'coastal' reads the coastline shape and
+// gets clamped against it — 'direct' and 'north' are built from a formula
+// that never touches that clamp, so they can't get pulled onto the exact
+// same curve as R-01 (which is what was causing the two lines to sit
+// perfectly on top of each other).
+function buildRoutePath(A, B, kind, param) {
+  const pts = []; const n = 34;
+  for (let i = 0; i <= n; i++) {
+    const f = i / n;
+    const lon = A.lon + (B.lon - A.lon) * f;
+    const straight = A.lat + (B.lat - A.lat) * f;
+    const bow = Math.sin(f * Math.PI);
+
+    let lat;
+    if (kind === 'coastal') {
+      const shelf = coastLat(lon) + 1.1;
+      lat = straight + bow * (shelf - straight);
+      lat = Math.max(coastLat(lon) + 0.4, lat); // only this kind ever touches the coast clamp
+    } else {
+      // 'direct' and 'north' — coastline-independent, just a bow of a
+      // given size off the straight line. Different sign/size from the
+      // coastal shelf above means these two families can't coincide.
+      lat = straight + bow * param;
+    }
+
+    pts.push({ lon, lat: Math.min(-58, lat) });
+  }
+  return pts;
+}
+
 export function createMockData(seed = 20260829) {
   const rnd = makeRng(seed);
 
@@ -74,25 +104,93 @@ export function createMockData(seed = 20260829) {
   ];
 
   const A = { lon: 76.19, lat: -69.41 }, B = { lon: 11.73, lat: -70.09 };
-  const mk = (offs) => {
-    const pts = []; const n = 34;
-    for (let i = 0; i <= n; i++) {
-      const f = i / n;
-      const lon = A.lon + (B.lon - A.lon) * f;
-      const bow = Math.sin(f * Math.PI);
-      const lat = A.lat + (B.lat - A.lat) * f + bow * offs + Math.sin(f * 7.3) * 0.22;
-      pts.push({ lon, lat: Math.min(-58, Math.max(coastLat(lon) + 0.5, lat)) });
-    }
-    return pts;
-  };
 
   const routes = [
-    { id: 'R-01', name: 'Coastal lead transit', color: '#b5abfc', pts: mk(0.9), rec: true, dist: '1,412 nm', eta: '5 d 22 h', conc: '41%', fuel: '218 t', risk: '0.31' },
-    { id: 'R-02', name: 'Northern open water', color: '#6fcf97', pts: mk(4.6), rec: false, dist: '1,596 nm', eta: '6 d 08 h', conc: '12%', fuel: '241 t', risk: '0.14' },
-    { id: 'R-03', name: 'Direct great circle', color: '#d9a24a', pts: mk(-0.6), rec: false, dist: '1,338 nm', eta: '6 d 20 h', conc: '68%', fuel: '296 t', risk: '0.72' }
+    { id: 'R-01', name: 'Coastal lead transit', color: '#b5abfc', pts: buildRoutePath(A, B, 'coastal', 0), rec: true, dist: '1,412 nm', eta: '5 d 22 h', conc: '41%', fuel: '218 t', risk: '0.31' },
+    { id: 'R-02', name: 'Northern open water', color: '#6fcf97', pts: buildRoutePath(A, B, 'north', 6.2), rec: false, dist: '1,596 nm', eta: '6 d 08 h', conc: '12%', fuel: '241 t', risk: '0.14' },
+    { id: 'R-03', name: 'Direct great circle', color: '#d9a24a', pts: buildRoutePath(A, B, 'direct', 1.6), rec: false, dist: '1,338 nm', eta: '6 d 20 h', conc: '68%', fuel: '296 t', risk: '0.72' }
   ];
 
   return { bergs, vessels, routes, COAST };
+}
+
+const HULL_MAX_SPEED = { PC4: 15, PC5: 13, PC6: 10.5 };       // knots, hull-rated max transit speed
+const HULL_LIMITS = { PC4: 0.85, PC5: 0.70, PC6: 0.55 };      // safe concentration ceiling per hull class
+const HULL_RISK_FACTOR = { PC4: 0.72, PC5: 1.0, PC6: 1.35 };  // relative risk multiplier per hull class
+const MIN_SPEED = 7.5;                                        // knots, fuel-economical cruise speed
+const REF_SPEED = 11;                                         // knots, speed the base fuel figures were calibrated at
+export const RISK_CEILING = 0.35;
+
+// Recomputes the 3 candidate routes for the given ice class / fuel-speed
+// priority / resolve attempt ("seed"). Drives the Route planning page.
+//
+// Speed model: the fuel/speed slider picks a transit speed between an
+// economical minimum and the hull's rated max. ETA follows directly from
+// that speed; fuel follows the standard naval-architecture rule of thumb
+// that burn scales roughly with speed^2 * distance (power ~ speed^3, time
+// ~ distance/speed) — so this is the thing that makes "speed-weighted"
+// visibly cost more fuel and "fuel-weighted" visibly take longer.
+export function computeRoutes({ iceClass = 'PC5', priority = 50, seed = 0 } = {}) {
+  const rnd = makeRng(90000 + seed * 7919 + priority * 131);
+  const A = { lon: 76.19, lat: -69.41 }, B = { lon: 11.73, lat: -70.09 };
+
+  const base = [
+    { id: 'R-01', name: 'Coastal lead transit', color: '#b5abfc', kind: 'coastal', param: 0, jitter: 0.4, baseDist: 1412, baseConc: 0.41, baseFuel: 218 },
+    { id: 'R-02', name: 'Northern open water', color: '#6fcf97', kind: 'north', param: 6.2, jitter: 1.0, baseDist: 1596, baseConc: 0.12, baseFuel: 241 },
+    { id: 'R-03', name: 'Direct great circle', color: '#d9a24a', kind: 'direct', param: 1.6, jitter: 0.5, baseDist: 1338, baseConc: 0.68, baseFuel: 296 }
+  ];
+
+  const speedWeight = priority / 100;      // 0 = fuel-weighted .. 1 = speed-weighted
+  const fuelWeight = 1 - speedWeight;
+  const hullMaxSpeed = HULL_MAX_SPEED[iceClass] ?? 13;
+  const hullRisk = HULL_RISK_FACTOR[iceClass] ?? 1;
+  const hullLimit = HULL_LIMITS[iceClass] ?? 0.70;
+
+  const routes = base.map((r) => {
+    // Each re-solve pulls a fresh ensemble sample of ice concentration and
+    // path shape — not just a tiny nudge, or "Re-solve" doesn't feel like
+    // it did anything.
+    const concJitter = 1 + (rnd() - 0.5) * 0.30;
+    const conc = Math.min(0.97, Math.max(0.04, r.baseConc * concJitter));
+    const overLimit = conc > hullLimit;
+    const overBy = Math.max(0, conc - hullLimit);
+
+    // Throttle speed down further if the ice ahead exceeds what this hull
+    // class is rated to push through safely.
+    const iceThrottle = overLimit ? Math.max(0.45, 1 - overBy * 1.6) : 1;
+    const speed = (MIN_SPEED + (hullMaxSpeed - MIN_SPEED) * speedWeight) * iceThrottle;
+
+    const etaH = r.baseDist / speed;
+    const fuel = (r.baseFuel / (REF_SPEED * REF_SPEED)) * speed * speed * (1 + (rnd() - 0.5) * 0.06);
+    const risk = Math.min(0.95, conc * hullRisk * (overLimit ? 1 + speedWeight * 0.5 : 1));
+
+    let days = Math.floor(etaH / 24);
+    let hours = Math.round(etaH - days * 24);
+    if (hours === 24) { hours = 0; days += 1; }
+
+    return {
+      id: r.id, name: r.name, color: r.color,
+      pts: buildRoutePath(A, B, r.kind, r.param + (rnd() - 0.5) * r.jitter),
+      dist: `${Math.round(r.baseDist * (1 + (rnd() - 0.5) * 0.01))} nm`,
+      eta: `${days} d ${hours} h`,
+      conc: `${Math.round(conc * 100)}%`,
+      fuel: `${Math.round(fuel)} t`,
+      risk: risk.toFixed(2),
+      speedKn: speed.toFixed(1),
+      _cost: fuelWeight * fuel + speedWeight * etaH * 10,
+      _risk: risk
+    };
+  });
+
+  const within = routes.filter((r) => r._risk <= RISK_CEILING);
+  const pool = within.length ? within : routes;
+  const best = pool.reduce((a, b) => (b._cost < a._cost ? b : a));
+  routes.forEach((r) => {
+    r.rec = r.id === best.id;
+    delete r._cost; delete r._risk;
+  });
+
+  return routes;
 }
 
 export const feeds = [

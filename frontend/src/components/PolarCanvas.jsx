@@ -176,28 +176,69 @@ export default function PolarCanvas({
 
     const routeP = Math.min(1, (now - routeT0Ref.current) / 900);
     if ((L.route || mode === 'routes') && !preview) {
-      data.routes.forEach((r, i) => {
+      // Draw the recommended route last so it's never hidden underneath
+      // an alternate where two tracks run close together.
+      const drawList = data.routes
+        .map((r, i) => ({ r, i }))
+        .sort((a, b) => (a.r.rec === b.r.rec ? 0 : a.r.rec ? 1 : -1));
+
+      drawList.forEach(({ r, i }) => {
         const show = mode === 'routes'
           ? Math.max(0, Math.min(1, (routeP * 3.1) - i * 0.85))
           : (r.rec ? 1 : 0);
         if (show <= 0) return;
         const n = Math.max(2, Math.floor(r.pts.length * show));
-        c.lineWidth = r.rec ? 2.4 : 1.6;
-        c.strokeStyle = r.color;
-        c.shadowColor = r.rec ? 'rgba(181,171,252,0.55)' : 'transparent';
-        c.shadowBlur = r.rec ? 12 : 0;
-        c.setLineDash(r.rec ? [] : [7, 5]);
+        const pathPoints = [];
+        for (let k = 0; k < n; k++) pathPoints.push(proj(el, r.pts[k].lon, r.pts[k].lat));
+
+        c.lineCap = 'round';
+        c.lineJoin = 'round';
+
+        // Dark halo pass first — keeps two close-together tracks visually
+        // separated instead of one color simply overwriting the other.
+        c.strokeStyle = 'rgba(10,11,22,0.55)';
+        c.lineWidth = (r.rec ? 3 : 1.8) + 2.5;
         c.beginPath();
-        for (let k = 0; k < n; k++) {
-          const p = proj(el, r.pts[k].lon, r.pts[k].lat);
-          if (k === 0) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]);
-        }
-        c.stroke(); c.setLineDash([]); c.shadowBlur = 0;
+        pathPoints.forEach((p, k) => { if (k === 0) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]); });
+        c.stroke();
+
+        // Colored pass on top, at full strength for every route.
+        c.lineWidth = r.rec ? 3 : 1.8;
+        c.strokeStyle = r.color;
+        c.globalAlpha = r.rec ? 1 : 0.92;
+        c.shadowColor = r.rec ? 'rgba(181,171,252,0.6)' : 'transparent';
+        c.shadowBlur = r.rec ? 14 : 0;
+        c.beginPath();
+        pathPoints.forEach((p, k) => { if (k === 0) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]); });
+        c.stroke();
+        c.shadowBlur = 0;
+        c.globalAlpha = 1;
+
         if (show >= 1 && mode === 'routes') {
           [r.pts[0], r.pts[r.pts.length - 1]].forEach((wp) => {
             const p = proj(el, wp.lon, wp.lat);
             c.fillStyle = '#e9e9ed'; c.beginPath(); c.arc(p[0], p[1], 3, 0, Math.PI * 2); c.fill();
           });
+
+          // Each route's id tag sits at a different fraction of its own
+          // path (0.30 / 0.52 / 0.74) so three converging tracks don't
+          // stack their labels on top of one another near the coast.
+          const tagFrac = 0.3 + i * 0.22;
+          const tagIdx = Math.min(r.pts.length - 1, Math.floor(r.pts.length * tagFrac));
+          const mp = proj(el, r.pts[tagIdx].lon, r.pts[tagIdx].lat);
+          c.font = '600 10px "JetBrains Mono", monospace';
+          const label = r.id;
+          const tw = c.measureText(label).width;
+          const padX = 5, tagH = 15, tagY = mp[1] - 22;
+          c.fillStyle = 'rgba(16,17,32,0.82)';
+          c.beginPath();
+          if (c.roundRect) c.roundRect(mp[0] - tw / 2 - padX, tagY, tw + padX * 2, tagH, 4);
+          else c.rect(mp[0] - tw / 2 - padX, tagY, tw + padX * 2, tagH);
+          c.fill();
+          c.fillStyle = r.color;
+          c.textBaseline = 'middle';
+          c.fillText(label, mp[0] - tw / 2, tagY + tagH / 2 + 1);
+          c.textBaseline = 'alphabetic';
         }
       });
     }
@@ -228,9 +269,8 @@ export default function PolarCanvas({
         }
         const sel = selected && selected.type === 'berg' && selected.id === b.id;
         if (sel) {
-          // FIX: previously ignored `reduced` — the highlight ring pulsed
-          // via Math.sin(clock*3) unconditionally. Under reduced motion we
-          // now draw a static ring at its mean radius/opacity instead.
+          // Reduced-motion: draw a static ring at its mean radius/opacity
+          // instead of pulsing via Math.sin(clock*3).
           const pulse = reduced ? 0 : Math.sin(clock * 3);
           c.strokeStyle = `rgba(217,90,79,${0.35 + 0.35 * pulse})`;
           c.lineWidth = 2;
@@ -274,8 +314,8 @@ export default function PolarCanvas({
     }
     hitsRef.current = hits;
 
-    // Radar-style reveal sweep on first mount of this view.
-    // FIX: previously played regardless of reduced-motion setting.
+    // Radar-style reveal sweep on first mount of this view — already
+    // guarded by !reduced so it's skipped under reduced-motion settings.
     const sinceMount = (now - mountClockRef.current) / 1000;
     if (!preview && !reduced && sinceMount < 1.6) {
       const a = 1 - sinceMount / 1.6;

@@ -3,12 +3,25 @@ import PolarCanvas from '../components/PolarCanvas';
 import SelectionPanel from '../components/SelectionPanel';
 import { fmtPos } from '../data/mockData';
 
+// Picks the map corner diagonally opposite the selected berg's projected
+// position, so the panel never docks on top of the marker it's describing.
+// Longitude alone determines which half of the circle a point falls in
+// (proj() in geo.js places x via sin(lon), y via cos(lon)), so this needs
+// no canvas access — just the berg's own coordinate.
+function opposedCorner(lon) {
+  const a = (lon * Math.PI) / 180;
+  const markerRight = Math.sin(a) >= 0;
+  const markerBottom = Math.cos(a) >= 0;
+  return `${markerBottom ? 'top' : 'bottom'}-${markerRight ? 'left' : 'right'}`;
+}
+
 function buildSelection(sel, data) {
   if (!sel || sel.type !== 'berg') return null;
   const b = data.bergs.find((x) => x.id === sel.id);
   if (!b) return null;
   return {
     kind: 'Iceberg', name: b.id,
+    corner: opposedCorner(b.lon),
     fields: [
       { k: 'Position', v: fmtPos(b.lon, b.lat) }, { k: 'Sector', v: b.sector },
       { k: 'Area', v: b.area.toLocaleString() + ' km²' }, { k: 'Draft', v: b.thick + ' m' },
@@ -78,8 +91,8 @@ export default function BergsPage({ data, sel, onSelect }) {
       </section>
 
       <section className="sd-bergs__map">
-        <PolarCanvas mode="bergs" data={data} layers={{ bergs: true }} t={0} selected={sel} onSelect={onSelect} />
-        <SelectionPanel sel={selection} position="bergs" />
+                <PolarCanvas mode="bergs" data={data} layers={{ bergs: true }} t={0} selected={sel} onSelect={onSelect} />
+        <SelectionPanel sel={selection} position="bergs" corner={selection?.corner} />
       </section>
 
       <style>{`
@@ -87,7 +100,7 @@ export default function BergsPage({ data, sel, onSelect }) {
           flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(420px, 1fr) minmax(420px, 46%);
           animation: dcFade 380ms ease-out both;
         }
-        .sd-bergs__table { border-right: 1px solid var(--color-divider); display: flex; flex-direction: column; min-width: 0; }
+        .sd-bergs__table { border-right: 1px solid var(--color-divider); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
         .sd-bergs__filterRow { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-6) var(--space-6) var(--space-4); }
         .sd-bergs__filter { max-width: 280px; font-family: var(--font-mono); font-size: 12px; }
         .sd-bergs__count { font-family: var(--font-mono); font-size: 11px; color: color-mix(in srgb, var(--color-text) 45%, transparent); }

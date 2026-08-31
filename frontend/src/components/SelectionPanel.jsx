@@ -1,7 +1,11 @@
-export default function SelectionPanel({ sel, onClear, position = 'ops' }) {
+export default function SelectionPanel({ sel, onClear, position = 'ops', corner = 'bottom-right' }) {
   if (!sel) return null;
+  const [vert, horiz] = corner.split('-');
+  const cornerStyle = position === 'bergs'
+    ? { [vert]: 'var(--space-6)', [horiz]: 'var(--space-6)' }
+    : undefined;
   return (
-    <aside className={`sd-selection sd-selection--${position}`}>
+    <aside className={`sd-selection sd-selection--${position}`} style={cornerStyle}>
       <div className="sd-selection__head">
         <div>
           <span className="sd-selection__kind">{sel.kind}</span>
@@ -30,7 +34,8 @@ export default function SelectionPanel({ sel, onClear, position = 'ops' }) {
           animation: dcSlideR 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
         .sd-selection--bergs {
-          position: absolute; left: var(--space-6); right: var(--space-6); bottom: var(--space-6);
+          position: absolute; width: 340px;
+          max-height: calc(100% - var(--space-6) * 2); overflow-y: auto;
           animation: dcRise 380ms ease-out both;
         }
         .sd-selection__head { display: flex; align-items: start; justify-content: space-between; gap: var(--space-4); }
@@ -44,6 +49,7 @@ export default function SelectionPanel({ sel, onClear, position = 'ops' }) {
           display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
           gap: var(--space-4); margin-top: var(--space-4);
         }
+        .sd-selection--bergs .sd-selection__fields { grid-template-columns: repeat(2, 1fr); }
         .sd-selection__fk {
           font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
           color: color-mix(in srgb, var(--color-text) 45%, transparent);

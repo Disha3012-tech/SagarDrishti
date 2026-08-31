@@ -63,14 +63,24 @@ export default function BergsPage({ data, sel, onSelect }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((b) => {
+              {rows.map((b, i) => {
                 const selected = sel && sel.type === 'berg' && sel.id === b.id;
                 const stateColor = b.state === 'grounded' ? '#d9a24a' : (b.state === 'uncertain' ? '#d95a4f' : '#6fcf97');
                 const glyph = b.state === 'grounded' ? '■' : (b.state === 'uncertain' ? '▲' : '●');
                 return (
                   <tr
-                    key={b.id} onClick={() => onSelect({ type: 'berg', id: b.id })}
-                    style={{ cursor: 'pointer', background: selected ? 'color-mix(in srgb, var(--color-accent) 16%, transparent)' : 'transparent' }}
+                    key={b.id}
+                    onClick={() => onSelect({ type: 'berg', id: b.id })}
+                    className="sd-bergs__row"
+                    style={{
+                      cursor: 'pointer',
+                      // Staggered entrance to match FeedsPage's row reveal —
+                      // this was previously absent here, so the two tables
+                      // felt inconsistent side by side. Re-triggers whenever
+                      // a row re-enters the filtered set (new key mount).
+                      animation: `dcRise 300ms ${Math.min(i, 14) * 30}ms ease-out both`,
+                      ...(selected ? { background: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' } : {})
+                    }}
                   >
                     <td className="sd-bergs__mono">{b.id}</td>
                     <td className="sd-bergs__mono sd-bergs__pos">{fmtPos(b.lon, b.lat)}</td>
@@ -78,7 +88,10 @@ export default function BergsPage({ data, sel, onSelect }) {
                     <td className="sd-bergs__mono sd-bergs__small" style={{ textAlign: 'right' }}>{b.spd.toFixed(2)} kt {Math.round(b.brg)}°</td>
                     <td className="sd-bergs__mono sd-bergs__small" style={{ textAlign: 'right' }}>{b.conf.toFixed(2)}</td>
                     <td style={{ textAlign: 'right' }}>
-                      <span className="tag" style={{ color: stateColor, border: `1px solid ${stateColor}`, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      <span
+                        className={`tag${b.state === 'uncertain' ? ' sd-bergs__badge--uncertain' : ''}`}
+                        style={{ color: stateColor, border: `1px solid ${stateColor}`, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+                      >
                         {glyph} {b.state}
                       </span>
                     </td>
@@ -113,6 +126,17 @@ export default function BergsPage({ data, sel, onSelect }) {
         .sd-bergs__pos { font-size: 12px; color: color-mix(in srgb, var(--color-text) 66%, transparent); }
         .sd-bergs__small { font-size: 12px; }
         .sd-bergs__map { position: relative; min-width: 0; }
+
+        /* Hover feedback on rows — omitted from inline style (rather than
+           set to 'transparent') so it doesn't out-specificity this rule
+           for unselected rows; selected rows keep their inline background. */
+        .sd-bergs__row { transition: background 160ms ease; }
+        .sd-bergs__row:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+
+        /* UNCERTAIN is a warning state, not just an informational tag —
+           reuse the same hazard-ring language as the CRITICAL alert cards
+           on Operations, so it reads consistently as "needs attention". */
+        .sd-bergs__badge--uncertain { animation: dcHazard 2.2s ease-in-out infinite; }
       `}</style>
     </main>
   );

@@ -5,7 +5,14 @@ export default function SelectionPanel({ sel, onClear, position = 'ops', corner 
     ? { [vert]: 'var(--space-6)', [horiz]: 'var(--space-6)' }
     : undefined;
   return (
-    <aside className={`sd-selection sd-selection--${position}`} style={cornerStyle}>
+    // FIX: previously this <aside> never unmounted between selections (same
+    // position in the tree, same tag), so its entrance animation only ever
+    // played once — clicking a different berg right after another swapped
+    // the content with no animation. Keying on `sel.name` forces React to
+    // remount it whenever the actual selection changes (not on unrelated
+    // re-renders, since the key only changes when the berg/vessel does),
+    // replaying dcSlideR / the staggered field reveal each time.
+    <aside key={sel.name} className={`sd-selection sd-selection--${position}`} style={cornerStyle}>
       <div className="sd-selection__head">
         <div>
           <span className="sd-selection__kind">{sel.kind}</span>
